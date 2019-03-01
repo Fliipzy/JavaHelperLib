@@ -29,4 +29,4 @@ buildNumber.properties
 #
 # Main class for testing
 #
-src\main\java\freds\helperlib\App.java
+src/main/java/freds/helperlib/App.java
