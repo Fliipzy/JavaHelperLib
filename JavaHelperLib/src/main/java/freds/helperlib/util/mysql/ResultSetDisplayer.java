@@ -1,15 +1,14 @@
 package freds.helperlib.util.mysql;
 
-import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
+import freds.helperlib.util.mysql.DisplaySettings.GridStyle;
 import freds.helperlib.util.text.StringUtils;
 
-public class ResultSetDisplayer {
+public class ResultSetDisplayer 
+{
     private ResultSet resultSet;
     private DisplaySettings displaySettings;
 
@@ -17,27 +16,31 @@ public class ResultSetDisplayer {
     private int columnCount;
     private String[] columnNames;
     private int[] longestColumnData;
-    private char[] charSet;
+    private String[] gridSet;
 
-    public ResultSetDisplayer(ResultSet resultSet) {
+    public ResultSetDisplayer(ResultSet resultSet) 
+    {
         this.resultSet = resultSet;
-        this.displaySettings = new DisplaySettings();
-        charSet = DisplaySettings.GRID_CHAR_SET;
+        this.displaySettings = new DisplaySettings(GridStyle.SINGLE_LINE, false);
+        gridSet = displaySettings.getStyleCharSet();
     }
 
-    public ResultSetDisplayer(ResultSet resultSet, DisplaySettings settings) {
+    public ResultSetDisplayer(ResultSet resultSet, DisplaySettings settings) 
+    {
         this.resultSet = resultSet;
         this.displaySettings = settings;
-        charSet = DisplaySettings.GRID_CHAR_SET;
+        gridSet = displaySettings.getStyleCharSet();
     }
 
-    public DisplaySettings getDisplaySettings() {
+    public DisplaySettings getDisplaySettings() 
+    {
         return displaySettings;
     }
 
-    public void display() {
-
-        try {
+    public void display() 
+    {
+        try 
+        {
             // Initialize data
             rsmd = resultSet.getMetaData();
             columnCount = rsmd.getColumnCount();
@@ -68,33 +71,34 @@ public class ResultSetDisplayer {
             System.out.print(xOffset.substring(1));
             
             //Display top line
-            String columnsTop = getRowSeperator("═", "┬");
-            columnsTop = "╔" + columnsTop.substring(0, columnsTop.length()-1) + "═╗";
-            System.out.println(columnsTop);
+            String top = getRowSeperator(gridSet[0], gridSet[4]);
+            top = gridSet[7] + top.substring(0, top.length()) + gridSet[8];
+            System.out.println(top);
 
             // Display Column names
-            System.out.print(xOffset.substring(1) + "║");
+            System.out.print(xOffset.substring(1) + gridSet[1]);
             for (int i = 0; i < columnCount; i++) 
             {
                 String data = getPaddedData(columnNames[i], i);
                 if (i < columnCount - 1) 
                 {
-                    System.out.print(data + charSet[1]);
+                    System.out.print(data + gridSet[1]);
                     continue;
                 }
-                System.out.println(data + "║");
+                System.out.println(data + gridSet[1]);
             }
 
             //Display column seperator
-            String columnsBottom = xOffset.substring(1) + "╠" + getRowSeperator("═", "┼") + "╣";
-            System.out.println(columnsBottom);
+            String columnSeperator = xOffset.substring(1) 
+            + gridSet[2] + getRowSeperator(gridSet[0], gridSet[6]) + gridSet[3];
+            System.out.println(columnSeperator);
             
             //Display row data
             resultSet.beforeFirst();
             while (resultSet.next()) 
             {
                 //Print xOffset
-                System.out.print(xOffset.substring(1) + "║");
+                System.out.print(xOffset.substring(1) + gridSet[1]);
 
                 String data = new String();
                 String paddedData = new String();
@@ -104,17 +108,21 @@ public class ResultSetDisplayer {
                     paddedData = getPaddedData(data, i);
                     if (i < columnCount-1) 
                     {
-                        paddedData = paddedData + charSet[1];
+                        paddedData = paddedData + gridSet[1];
                     }
                     System.out.print(paddedData);
                 }
-                System.out.print("║");
+                System.out.print(gridSet[1]);
                 System.out.println();
             }
 
             //Display bottom
-            String bottomLine = xOffset.substring(1) + "╚" + getRowSeperator("═", "┴") + "╝";
-            System.out.println(bottomLine);
+            String bottom = xOffset.substring(1) 
+            + gridSet[9] 
+            + getRowSeperator(gridSet[0], gridSet[5]) 
+            + gridSet[10];
+            
+            System.out.println(bottom);
         } 
         catch (SQLException e) 
         {
