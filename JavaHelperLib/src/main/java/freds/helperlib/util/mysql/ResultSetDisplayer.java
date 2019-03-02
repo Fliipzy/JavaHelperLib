@@ -1,135 +1,167 @@
 package freds.helperlib.util.mysql;
 
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
 import freds.helperlib.util.text.StringUtils;
 
-public class ResultSetDisplayer 
-{
+public class ResultSetDisplayer {
     private ResultSet resultSet;
     private DisplaySettings displaySettings;
 
-    public ResultSetDisplayer(ResultSet resultSet) 
-    {
+    private ResultSetMetaData rsmd;
+    private int columnCount;
+    private String[] columnNames;
+    private int[] longestColumnData;
+    private char[] charSet;
+
+    public ResultSetDisplayer(ResultSet resultSet) {
         this.resultSet = resultSet;
         this.displaySettings = new DisplaySettings();
+        charSet = DisplaySettings.GRID_CHAR_SET;
     }
 
-    public ResultSetDisplayer(ResultSet resultSet, DisplaySettings settings) 
-    {
+    public ResultSetDisplayer(ResultSet resultSet, DisplaySettings settings) {
         this.resultSet = resultSet;
         this.displaySettings = settings;
+        charSet = DisplaySettings.GRID_CHAR_SET;
     }
 
-    public DisplaySettings getDisplaySettings() 
-    {
+    public DisplaySettings getDisplaySettings() {
         return displaySettings;
     }
 
-    public void display() 
-    {
-        ResultSetMetaData rsmd;
-        int columnCount;
-        String[] columnNames;
-        int[] longestColumnData;
+    public void display() {
 
-        try 
-        {
-            //Initialize data
+        try {
+            // Initialize data
             rsmd = resultSet.getMetaData();
             columnCount = rsmd.getColumnCount();
             columnNames = new String[columnCount];
             longestColumnData = new int[columnCount];
 
-            //Populate columnNames and longestColumnData
-            for (int i = 0; i < columnCount; i++) 
-            {
-                columnNames[i] = rsmd.getColumnName(i+1);
+            // Populate columnNames and longestColumnData
+            for (int i = 0; i < columnCount; i++) {
+                columnNames[i] = rsmd.getColumnName(i + 1);
 
-                //Reset pointer
+                // Reset pointer
                 resultSet.beforeFirst();
 
-                //Get column name length
-                longestColumnData[i] = rsmd.getColumnName(i+1).length();
-                //Compare length to every row data in that column
-                while (resultSet.next()) 
-                {
-                    int result_length = resultSet.getString(i+1).length();
+                // Get column name length
+                longestColumnData[i] = rsmd.getColumnName(i + 1).length();
+                // Compare length to every row data in that column
+                while (resultSet.next()) {
+                    int result_length = resultSet.getString(i + 1).length();
 
-                    if (longestColumnData[i] < result_length) 
-                    {
+                    if (longestColumnData[i] < result_length) {
                         longestColumnData[i] = result_length;
                     }
                 }
             }
+            
+            // Push column names text x amount to the right
+            String xOffset = getXOffset();
+            System.out.print(xOffset.substring(1));
+            
+            //Display top line
+            String columnsTop = getRowSeperator("═", "┬");
+            columnsTop = "╔" + columnsTop.substring(0, columnsTop.length()-1) + "═╗";
+            System.out.println(columnsTop);
 
-            //Push column names text x amount to the right
-            pushXOffset();
-
-            //Display Column names
+            // Display Column names
+            System.out.print(xOffset.substring(1) + "║");
             for (int i = 0; i < columnCount; i++) 
             {
+                String data = getPaddedData(columnNames[i], i);
+                if (i < columnCount - 1) 
+                {
+                    System.out.print(data + charSet[1]);
+                    continue;
+                }
+                System.out.println(data + "║");
+            }
+
+            //Display column seperator
+            String columnsBottom = xOffset.substring(1) + "╠" + getRowSeperator("═", "┼") + "╣";
+            System.out.println(columnsBottom);
+            
+            //Display row data
+            resultSet.beforeFirst();
+            while (resultSet.next()) 
+            {
+                //Print xOffset
+                System.out.print(xOffset.substring(1) + "║");
+
+                String data = new String();
+                String paddedData = new String();
+                for (int i = 0; i < columnCount; i++) 
+                {
+                    data = resultSet.getString(i+1); //i+1 because it's exclusive
+                    paddedData = getPaddedData(data, i);
+                    if (i < columnCount-1) 
+                    {
+                        paddedData = paddedData + charSet[1];
+                    }
+                    System.out.print(paddedData);
+                }
+                System.out.print("║");
                 System.out.println();
             }
 
+            //Display bottom
+            String bottomLine = xOffset.substring(1) + "╚" + getRowSeperator("═", "┴") + "╝";
+            System.out.println(bottomLine);
         } 
         catch (SQLException e) 
         {
             e.printStackTrace();
         }
-
-        
     }
 
-    private void pushXOffset()
+    private String getRowSeperator(String straight, String cross)
     {
-        System.out.print(StringUtils.fill("", 0, displaySettings.getSetXOffset()));
+        String seperator = new String();
+        String line = new String();
+        int cLength = 0;
+        for (int i = 0; i < columnCount; i++) 
+        {   
+            cLength = displaySettings.getDataLeftOffset() + longestColumnData[i] + displaySettings.getDataRightOffset();
+            if (i < columnCount-1) 
+            {
+                line = StringUtils.fill("", 0, cLength, straight) + cross;
+            }
+            else
+            {
+                line = StringUtils.fill("", 0, cLength, straight);
+            }
+            seperator += line;
+        }
+        return seperator;
     }
 
-
-    class DisplaySettings
+    private String getXOffset()
     {
-        public static final int STANDARD_VALUE_SPACE_OFFSET = 1;
+        return StringUtils.fill("", 0, displaySettings.getSetXOffset()+1);
+    }
 
-        private boolean useColumnGrid = true;
-        private boolean useRowGrid = false;
+    private String getPaddedData(String data, int columnIndex)
+    {
+        int rightOffset = displaySettings.getDataRightOffset();
+        int leftOffset = displaySettings.getDataLeftOffset();
 
-        private int dataXOffset;
-        private int setXOffset;
+        int extraSpace = longestColumnData[columnIndex] - data.length();
 
-        public DisplaySettings() 
-        {
-            this.dataXOffset = STANDARD_VALUE_SPACE_OFFSET;
-        }
+        //Fill left side with whitespace
+        data = StringUtils.fill(data, 0, leftOffset);
 
-        public DisplaySettings(boolean useColumnGrid, boolean useRowGrid, int dataXOffset, int setXOffset) 
-        {
-            this.useColumnGrid = useColumnGrid;
-            this.useRowGrid = useRowGrid;
-            this.dataXOffset = dataXOffset;
-            this.setXOffset = setXOffset;
-        }
+        //Fill right side with whitespace
+        data = StringUtils.fill(data, data.length()-1, extraSpace + rightOffset);
 
-        public boolean getUseColumnGrid() 
-        {
-            return useColumnGrid;
-        }
-
-        public boolean getUseRowGrid() 
-        {
-            return useRowGrid;
-        }
-
-        public int getDataXOffset() 
-        {
-            return dataXOffset;
-        }
-
-        public int getSetXOffset() 
-        {
-            return setXOffset;
-        }
+        return data;
     }
 }
+

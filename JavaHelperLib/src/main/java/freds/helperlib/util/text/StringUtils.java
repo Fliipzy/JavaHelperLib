@@ -29,7 +29,8 @@ public final class StringUtils
         }
 
         //If s_index is equal to the length of the original string. return into appended to original
-        if (s_index == original.length()-1) {
+        if (s_index == original.length()-1 && original.length() > 1) 
+        {
             return original + into;
         }
 
